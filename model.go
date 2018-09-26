@@ -1,116 +1,146 @@
-package hostingmodels
+package funcmodels
 
 import (
 	"errors"
+	"fmt"
 )
 
-// AssetMetadata represents ... TODO
-type AssetMetadata interface {
-	ID() bson.ObjectID
+// Function represents ... TODO
+type Function interface {
+	ID() bson.ObjectId
 	Name() string
-	Age() int
-	Sport() string
-	Weird() []hosting.weird
-	Builder() *AssetMetadataBuilder
+	TranspiledSource() string
+	SourceMap() json.RawMessage
+	Private() bool
+	CanEvaluate() *bson.D
+	Builder() *FunctionBuilder
 }
 
-// AssetMetadataBuilder provides a convenient interface for building assetMetadata
-type AssetMetadataBuilder struct {
-	data assetMetadata
+// FunctionBuilder builds and validates functions
+type FunctionBuilder struct {
+	data function
 }
 
-type assetMetadata struct {
-	id    bson.ObjectID
-	name  string
-	age   int
-	sport string
-	weird []hosting.weird
+type function struct {
+	id               bson.ObjectId
+	name             string
+	transpiledSource string
+	sourceMap        json.RawMessage
+	private          bool
+	canEvaluate      *bson.D
 }
 
-// NewAssetMetadata returns a new AssetMetadataBuilder
-func NewAssetMetadataBuilder() *AssetMetadataBuilder {
-	return &AssetMetadataBuilder{}
+// NewFunction returns a new FunctionBuilder
+func NewFunctionBuilder() *FunctionBuilder {
+	return &FunctionBuilder{}
 }
 
-// ID returns the id of this basicAssetMetadata
-func (amd *basicAssetMetadata) ID() bson.ObjectID {
-	return amd.id
+// ID returns the id of this function
+func (fn *function) ID() bson.ObjectId {
+	return fn.id
 }
 
-// Name returns the name of this basicAssetMetadata
-func (amd *basicAssetMetadata) Name() string {
-	return amd.name
+// Name returns the name of this function
+func (fn *function) Name() string {
+	return fn.name
 }
 
-// Age returns the age of this basicAssetMetadata
-func (amd *basicAssetMetadata) Age() int {
-	return amd.age
+// TranspiledSource returns the transpiledSource of this function
+func (fn *function) TranspiledSource() string {
+	return fn.transpiledSource
 }
 
-// Sport returns the sport of this basicAssetMetadata
-func (amd *basicAssetMetadata) Sport() string {
-	return amd.sport
+// SourceMap returns the sourceMap of this function
+func (fn *function) SourceMap() json.RawMessage {
+	return fn.sourceMap
 }
 
-// Weird returns the weird of this basicAssetMetadata
-func (amd *basicAssetMetadata) Weird() []hosting.weird {
-	return amd.weird
+// Private returns the private of this function
+func (fn *function) Private() bool {
+	return fn.private
 }
 
-// Builder creates a shallow copy of the basicAssetMetadata and returns it as a builder
-func (amd *basicAssetMetadata) Builder() *AssetMetadataBuilder {
-	return NewAssetMetadataBuilder().
-		WithID(amd.ID()).
-		WithName(amd.Name()).
-		WithAge(amd.Age()).
-		WithSport(amd.Sport()).
-		WithWeird(amd.Weird())
+// CanEvaluate returns the canEvaluate of this function
+func (fn *function) CanEvaluate() *bson.D {
+	return fn.canEvaluate
 }
 
-// WithID sets the ID for the AssetMetadataBuilder
-func (amd *AssetMetadataBuilder) WithID() bson.ObjectID {
-	amd.data.id = id
-	return amd
+// Builder creates a shallow copy of the function and returns it as a FunctionBuilder
+func (fn *function) Builder() *FunctionBuilder {
+	builder := NewFunctionBuilder().
+		WithID(fn.ID()).
+		WithName(fn.Name()).
+		WithTranspiledSource(fn.TranspiledSource()).
+		WithSourceMap(fn.SourceMap()).
+		WithPrivate(fn.Private()).
+		WithCanEvaluate(fn.CanEvaluate())
+
+	// perform any necessary checks
+	// if ....
+
+	return builder
 }
 
-// WithName sets the Name for the AssetMetadataBuilder
-func (amd *AssetMetadataBuilder) WithName() string {
-	amd.data.name = name
-	return amd
+// WithID sets the ID for the FunctionBuilder
+func (builder *FunctionBuilder) WithID(id bson.ObjectId) *FunctionBuilder {
+	builder.data.id = id
+	return builder
 }
 
-// WithAge sets the Age for the AssetMetadataBuilder
-func (amd *AssetMetadataBuilder) WithAge() int {
-	amd.data.age = age
-	return amd
+// WithName sets the Name for the FunctionBuilder
+func (builder *FunctionBuilder) WithName(name string) *FunctionBuilder {
+	builder.data.name = name
+	return builder
 }
 
-// WithSport sets the Sport for the AssetMetadataBuilder
-func (amd *AssetMetadataBuilder) WithSport() string {
-	amd.data.sport = sport
-	return amd
+// WithTranspiledSource sets the TranspiledSource for the FunctionBuilder
+func (builder *FunctionBuilder) WithTranspiledSource(transpiledSource string) *FunctionBuilder {
+	builder.data.transpiledSource = transpiledSource
+	return builder
 }
 
-// WithWeird sets the Weird for the AssetMetadataBuilder
-func (amd *AssetMetadataBuilder) WithWeird() []hosting.weird {
-	amd.data.weird = weird
-	return amd
+// WithSourceMap sets the SourceMap for the FunctionBuilder
+func (builder *FunctionBuilder) WithSourceMap(sourceMap json.RawMessage) *FunctionBuilder {
+	builder.data.sourceMap = sourceMap
+	return builder
 }
 
-// Build builds a new AssetMetadata if it is validated
-func (amd *AssetMetadataBuilder) Build() (AssetMetadata, error) {
+// WithPrivate sets the Private for the FunctionBuilder
+func (builder *FunctionBuilder) WithPrivate(private bool) *FunctionBuilder {
+	builder.data.private = private
+	return builder
+}
+
+// WithCanEvaluate sets the CanEvaluate for the FunctionBuilder
+func (builder *FunctionBuilder) WithCanEvaluate(canEvaluate *bson.D) *FunctionBuilder {
+	builder.data.canEvaluate = canEvaluate
+	return builder
+}
+
+// Build builds a new Function if it is validated
+func (builder *FunctionBuilder) Build() (Function, error) {
+	built := &function{
+		id:               builder.data.id,
+		name:             builder.data.name,
+		transpiledSource: builder.data.transpiledSource,
+		sourceMap:        builder.data.sourceMap,
+		private:          builder.data.private,
+		canEvaluate:      builder.data.canEvaluate,
+	}
+
 	// Do relevant checks here
-	// if amd.data.id == "" {
+	// if fn.data.id == "" {
 	// 		return nil, errors.New("ERROR MESSAGE")
 	// }
-	return &amd.data, nil
+
+	return built, nil
 }
 
 // MustBuild calls Build() but panics if there is an error
-func (amd *AssetMetadataBuilder) MustBuild() (AssetMetadata, error) {
-	data, err := amd.Build()
+func (fn *FunctionBuilder) MustBuild() Function {
+	data, err := fn.Build()
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to build function: %v", err))
 	}
 	return data
 }

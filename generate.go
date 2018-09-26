@@ -10,15 +10,16 @@ import (
 func main() {
 	// Declare the fields
 	fields := []Field{
-		NewField("ID", "bson.ObjectID"),
-		NewField("name", "string"),
-		NewField("age", "int"),
-		NewField("sport", "string"),
-		NewField("weird", "[]hosting.weird"),
+		NewField("ID", "bson.ObjectId"),
+		NewField("Name", "string"),
+		NewField("TranspiledSource", "string"),
+		NewField("SourceMap", "json.RawMessage"),
+		NewField("Private", "bool"),
+		NewField("CanEvaluate", "*bson.D"),
 	}
 
 	// Create the model
-	model := NewModel("assetMetadata", "amd", "hostingmodels", fModel, fields)
+	model := NewModel("function", "fn", "funcmodels", fModel, fields)
 
 	// output the write
 	writeFiles(model)
@@ -68,10 +69,10 @@ func writeModel(model Model) {
 	switch model.fType {
 	case fModel:
 		writeLine(model.f, "package %s", model.packageName)
-		writeLine(model.f, "import (\n\t\"errors\"\n)")
+		writeLine(model.f, "import (\n\t\"errors\"\n\t\"fmt\")")
 	case fJSON:
 		writeLine(model.f, "package apimodelsv3")
-		writeLine(model.f, "import (\n\t\"errors\"\n\n\t\"github.com/10gen/stitch/utils/xjson\"\n\n\t\"gopkg.in/mgo.v2/bson\")")
+		writeLine(model.f, "import (\n\t\"errors\"\n\t\"encoding/json\"\n\n\t\"github.com/10gen/stitch/utils/xjson\"\n\n\t\"gopkg.in/mgo.v2/bson\")")
 	case fBSON:
 		writeLine(model.f, "package INSERTPACKAGENAMEHERE")
 		writeLine(model.f, "import (\n\t\"errors\"\n\n\t\"github.com/10gen/stitch/utils/xjson\"\n\n\t\"gopkg.in/mgo.v2/bson\")")
@@ -113,7 +114,12 @@ func writeInterfaceStub(model Model) {
 }
 
 func writeExternalStruct(model Model) {
-	writeLine(model.f, "// %s provides a convenient interface for building %s", model.externalStructName, model.internalStructName)
+	if model.fType == fModel {
+		writeLine(model.f, "// %s builds and validates %ss", model.externalStructName, model.internalStructName)
+
+	} else {
+		writeLine(model.f, "// %s is the representation of a %s interface", model.externalStructName, model.interfaceName)
+	}
 	writeLine(model.f, "type %s struct {", model.externalStructName)
 	writeLine(model.f, "data %s", model.internalStructName)
 	writeLine(model.f, "}\n")
@@ -158,44 +164,70 @@ func writeInterfaceMethods(model Model) {
 	for _, field := range model.fields {
 		writeLine(model.f, "// %s returns the %s of this %s", field.upperName, field.lowerName, model.gettersName)
 		writeLine(model.f, "func (%s *%s) %s() %s {", model.receiverName, model.gettersName, field.upperName, field.ftype)
-		writeLine(model.f, "return %s.%s", model.receiverName, field.lowerName)
+		if model.fType == fModel {
+			writeLine(model.f, "return %s.%s", model.receiverName, field.lowerName)
+
+		} else {
+			writeLine(model.f, "return %s.data.%s", model.receiverName, field.lowerName)
+
+		}
 		writeLine(model.f, "}\n")
 	}
 
-	writeLine(model.f, "// Builder creates a shallow copy of the %s and returns it as a builder", model.gettersName)
-	writeLine(model.f, "func (%s *%s) Builder() *%s {", model.receiverName, model.gettersName, model.externalStructName)
-	str := fmt.Sprintf("return New%s().\n", model.externalStructName)
-	for _, field := range model.fields {
-		str += fmt.Sprintf("\tWith%s(%s.%s()).\n", field.upperName, model.receiverName, field.upperName)
+	builder := model.externalStructName
+	if model.fType != fModel {
+		builder = model.interfaceName + "Builder"
+	}
+	writeLine(model.f, "// Builder creates a shallow copy of the %s and returns it as a %s", model.gettersName, builder)
+	writeLine(model.f, "func (%s *%s) Builder() *%s {", model.receiverName, model.gettersName, builder)
+	str := ""
+	if model.fType == fModel {
+		str = fmt.Sprintf("builder := New%s().\n", model.externalStructName)
+		for _, field := range model.fields {
+			str += fmt.Sprintf("\tWith%s(%s.%s()).\n", field.upperName, model.receiverName, field.upperName)
+		}
+	} else {
+		str = fmt.Sprintf("builder := %s.New%sBuilder().\n", model.packageName, model.externalStructName)
+		for _, field := range model.fields {
+			str += fmt.Sprintf("\tWith%s(%s.%s()).\n", field.upperName, model.receiverName, field.upperName)
+		}
 	}
 	str = str[:len(str)-2]
-	writeLine(model.f, str)
+	writeLine(model.f, str+"\n")
+	writeLine(model.f, "// perform any necessary checks")
+	writeLine(model.f, "// if ....\n")
+	writeLine(model.f, "return builder")
 	writeLine(model.f, "}\n")
 }
 
 func writeSetStubs(model Model) {
 	for _, field := range model.fields {
-		writeLine(model.f, "// With%s sets the %s for the %s", field.upperName, field.upperName, model.settersName)
-		writeLine(model.f, "func (%s *%s) With%s() %s {", model.receiverName, model.settersName, field.upperName, field.ftype)
-		writeLine(model.f, "%s.data.%s = %s", model.receiverName, field.lowerName, field.lowerName)
-		writeLine(model.f, "return %s", model.receiverName)
+		writeLine(model.f, "// With%s sets the %s for the %s", field.upperName, field.upperName, model.externalStructName)
+		writeLine(model.f, "func (builder *%s) With%s(%s %s) *%s {", model.externalStructName, field.upperName, field.lowerName, field.ftype, model.externalStructName)
+		writeLine(model.f, "builder.data.%s = %s", field.lowerName, field.lowerName)
+		writeLine(model.f, "return builder")
 		writeLine(model.f, "}")
 	}
 
 	writeLine(model.f, "// Build builds a new %s if it is validated", model.interfaceName)
-	writeLine(model.f, "func (%s *%s) Build() (%s, error) {", model.receiverName, model.externalStructName, model.interfaceName)
+	writeLine(model.f, "func (builder *%s) Build() (%s, error) {", model.externalStructName, model.interfaceName)
+	str := fmt.Sprintf("built := &%s{\n", model.internalStructName)
+	for _, field := range model.fields {
+		str += fmt.Sprintf("%s: builder.data.%s,\n", field.lowerName, field.lowerName)
+	}
+	writeLine(model.f, str+"}\n")
 	writeLine(model.f, "// Do relevant checks here")
 	writeLine(model.f, "// if %s.data.%s == \"\" {", model.receiverName, model.fields[0].lowerName)
 	writeLine(model.f, "// 		return nil, errors.New(\"ERROR MESSAGE\")")
-	writeLine(model.f, "// }")
-	writeLine(model.f, "return &%s.data, nil", model.receiverName)
+	writeLine(model.f, "// }\n")
+	writeLine(model.f, "return built, nil")
 	writeLine(model.f, "}")
 
 	writeLine(model.f, "// MustBuild calls Build() but panics if there is an error")
-	writeLine(model.f, "func (%s *%s) MustBuild() (%s, error) {", model.receiverName, model.externalStructName, model.interfaceName)
+	writeLine(model.f, "func (%s *%s) MustBuild() %s {", model.receiverName, model.externalStructName, model.interfaceName)
 	writeLine(model.f, "data, err := %s.Build()", model.receiverName)
 	writeLine(model.f, "if err != nil {")
-	writeLine(model.f, "panic(err)")
+	writeLine(model.f, "panic(fmt.Errorf(\"failed to build %s: %%v\", err))", model.internalStructName)
 	writeLine(model.f, "}")
 	writeLine(model.f, "return data")
 	writeLine(model.f, "}")
@@ -203,7 +235,7 @@ func writeSetStubs(model Model) {
 
 func writeMarshallingStubs(model Model) {
 	writeLine(model.f, "// MarshalBSON marshals the %s to BSON", model.externalStructName)
-	writeLine(model.f, "func (%s, %s) MarshalBSON() ([]byte, error) {\nreturn bson.Marshal(%s)\n}", model.receiverName, model.gettersName, model.receiverName)
+	writeLine(model.f, "func (%s %s) MarshalBSON() ([]byte, error) {\nreturn bson.Marshal(%s)\n}", model.receiverName, model.gettersName, model.receiverName)
 
 	writeLine(model.f, "// UnmarshalBSON unmarshals the %s from BSON", model.externalStructName)
 	writeLine(model.f, "func (%s *%s) UnmarshalBSON(data []byte) error {\n return bson.Unmarshal(data, %s)\n}", model.receiverName, model.gettersName, model.receiverName)
@@ -215,8 +247,36 @@ func writeMarshallingStubs(model Model) {
 	writeLine(model.f, "func (%s *%s) SetBSON(raw bson.Raw) error {\n return raw.Unmarshal(&%s.data) \n}", model.receiverName, model.gettersName, model.receiverName)
 }
 
-func writeToStructStub(model Model) {
+// ToFunction converts a funcmodels.Function to a store Function
+// func ToFunction(function funcmodels.Function) *Function {
+// 	data := functionData{
+// 		ID:               function.ID(),
+// 		Name:             function.Name(),
+// 		Source:           function.Source(),
+// 		TranspiledSource: function.TranspiledSource(),
+// 		SourceMap:        function.SourceMap(),
+// 		Private:          function.Private(),
+// 	}
+// 	if canEvaluate := function.CanEvaluate(); canEvaluate != nil {
+// 		rule := xjson.MarshalD(*canEvaluate)
+// 		data.CanEvaluate = &rule
+// 	}
+// 	return &Function{
+// 		data: data,
+// 	}
+// }
 
+func writeToStructStub(model Model) {
+	writeLine(model.f, "// To%s converts a %s to a %s", model.externalStructName, model.interfaceName, model.externalStructName)
+	writeLine(model.f, "func To%s(%s %s) *%s {", model.externalStructName, model.receiverName, model.interfaceName, model.externalStructName)
+	str := fmt.Sprintf("data := %s{\n", model.internalStructName)
+	for _, field := range model.fields {
+		str += fmt.Sprintf("%s: %s.%s(),\n", field.upperName, model.receiverName, field.upperName)
+	}
+	writeLine(model.f, str+"}\n")
+	writeLine(model.f, "// Perform some checks\n// if data.... == \n")
+	writeLine(model.f, "return &%s{\ndata: data,\n}", model.externalStructName)
+	writeLine(model.f, "}\n")
 }
 
 func check(e error) {
@@ -257,7 +317,6 @@ type Model struct {
 	internalStructName string
 	externalStructName string
 	gettersName        string
-	settersName        string
 	receiverName       string
 	packageName        string
 	fType              FileType
@@ -270,8 +329,7 @@ func NewModel(name, receiverName, packageName string, fileType FileType, fields 
 		interfaceName:      strings.Title(name),
 		internalStructName: strings.ToLower(string(name[0])) + name[1:],
 		externalStructName: strings.Title(name) + "Builder",
-		gettersName:        "basic" + strings.Title(name),
-		settersName:        strings.Title(name) + "Builder",
+		gettersName:        strings.ToLower(string(name[0])) + name[1:],
 		receiverName:       receiverName,
 		packageName:        packageName,
 		fType:              fileType,

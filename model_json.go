@@ -1,6 +1,7 @@
 package apimodelsv3
 
 import (
+	"encoding/json"
 	"errors"
 
 	"github.com/10gen/stitch/utils/xjson"
@@ -8,75 +9,106 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// AssetMetadata provides a convenient interface for building assetMetadata
-type AssetMetadata struct {
-	data assetMetadata
+// Function is the representation of a funcmodels.Function interface
+type Function struct {
+	data function
 }
 
-type assetMetadata struct {
-	ID    bson.ObjectID   `json:"_id"`
-	Name  string          `json:"name"`
-	Age   int             `json:"age"`
-	Sport string          `json:"sport"`
-	Weird []hosting.weird `json:"weird"`
+type function struct {
+	ID               bson.ObjectId   `json:"_id"`
+	Name             string          `json:"name"`
+	TranspiledSource string          `json:"transpiledSource"`
+	SourceMap        json.RawMessage `json:"sourceMap"`
+	Private          bool            `json:"private"`
+	CanEvaluate      *bson.D         `json:"canEvaluate"`
 }
 
-// Newhostingmodels.AssetMetadata returns a new AssetMetadata
-func NewAssetMetadata() *AssetMetadata {
-	return &AssetMetadata{}
+// Newfuncmodels.Function returns a new Function
+func NewFunction() *Function {
+	return &Function{}
 }
 
-// ID returns the id of this AssetMetadata
-func (amd *AssetMetadata) ID() bson.ObjectID {
-	return amd.id
+// ID returns the id of this Function
+func (fn *Function) ID() bson.ObjectId {
+	return fn.data.id
 }
 
-// Name returns the name of this AssetMetadata
-func (amd *AssetMetadata) Name() string {
-	return amd.name
+// Name returns the name of this Function
+func (fn *Function) Name() string {
+	return fn.data.name
 }
 
-// Age returns the age of this AssetMetadata
-func (amd *AssetMetadata) Age() int {
-	return amd.age
+// TranspiledSource returns the transpiledSource of this Function
+func (fn *Function) TranspiledSource() string {
+	return fn.data.transpiledSource
 }
 
-// Sport returns the sport of this AssetMetadata
-func (amd *AssetMetadata) Sport() string {
-	return amd.sport
+// SourceMap returns the sourceMap of this Function
+func (fn *Function) SourceMap() json.RawMessage {
+	return fn.data.sourceMap
 }
 
-// Weird returns the weird of this AssetMetadata
-func (amd *AssetMetadata) Weird() []hosting.weird {
-	return amd.weird
+// Private returns the private of this Function
+func (fn *Function) Private() bool {
+	return fn.data.private
 }
 
-// Builder creates a shallow copy of the AssetMetadata and returns it as a builder
-func (amd *AssetMetadata) Builder() *AssetMetadata {
-	return NewAssetMetadata().
-		WithID(amd.ID()).
-		WithName(amd.Name()).
-		WithAge(amd.Age()).
-		WithSport(amd.Sport()).
-		WithWeird(amd.Weird())
+// CanEvaluate returns the canEvaluate of this Function
+func (fn *Function) CanEvaluate() *bson.D {
+	return fn.data.canEvaluate
 }
 
-// MarshalBSON marshals the AssetMetadata to BSON
-func (amd, AssetMetadata) MarshalBSON() ([]byte, error) {
-	return bson.Marshal(amd)
+// Builder creates a shallow copy of the Function and returns it as a funcmodels.FunctionBuilder
+func (fn *Function) Builder() *funcmodels.FunctionBuilder {
+	builder := funcmodels.NewFunctionBuilder().
+		WithID(fn.ID()).
+		WithName(fn.Name()).
+		WithTranspiledSource(fn.TranspiledSource()).
+		WithSourceMap(fn.SourceMap()).
+		WithPrivate(fn.Private()).
+		WithCanEvaluate(fn.CanEvaluate())
+
+	// perform any necessary checks
+	// if ....
+
+	return builder
 }
 
-// UnmarshalBSON unmarshals the AssetMetadata from BSON
-func (amd *AssetMetadata) UnmarshalBSON(data []byte) error {
-	return bson.Unmarshal(data, amd)
+// MarshalBSON marshals the Function to BSON
+func (fn Function) MarshalBSON() ([]byte, error) {
+	return bson.Marshal(fn)
+}
+
+// UnmarshalBSON unmarshals the Function from BSON
+func (fn *Function) UnmarshalBSON(data []byte) error {
+	return bson.Unmarshal(data, fn)
 }
 
 // GetBSON returns the inner data for BSON marshaling
-func (amd AssetMetadata) GetBSON() (interface{}, error) {
-	return amd.data, nil
+func (fn Function) GetBSON() (interface{}, error) {
+	return fn.data, nil
 }
 
-// SetBSON unmarshals BSON onto the AssetMetadata
-func (amd *AssetMetadata) SetBSON(raw bson.Raw) error {
-	return raw.Unmarshal(&amd.data)
+// SetBSON unmarshals BSON onto the Function
+func (fn *Function) SetBSON(raw bson.Raw) error {
+	return raw.Unmarshal(&fn.data)
+}
+
+// ToFunction converts a funcmodels.Function to a Function
+func ToFunction(fn funcmodels.Function) *Function {
+	data := function{
+		ID:               fn.ID(),
+		Name:             fn.Name(),
+		TranspiledSource: fn.TranspiledSource(),
+		SourceMap:        fn.SourceMap(),
+		Private:          fn.Private(),
+		CanEvaluate:      fn.CanEvaluate(),
+	}
+
+	// Perform some checks
+	// if data.... ==
+
+	return &Function{
+		data: data,
+	}
 }
