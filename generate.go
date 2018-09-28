@@ -12,14 +12,12 @@ func main() {
 	fields := []Field{
 		NewField("ID", "bson.ObjectId"),
 		NewField("Name", "string"),
-		NewField("TranspiledSource", "string"),
-		NewField("SourceMap", "json.RawMessage"),
+		NewField("Value", "xjson.Value"),
 		NewField("Private", "bool"),
-		NewField("CanEvaluate", "*bson.D"),
 	}
 
 	// Create the model
-	model := NewModel("function", "fn", "funcmodels", fModel, fields)
+	model := NewModel("value", "val", "valmodels", fModel, fields)
 
 	// output the write
 	writeFiles(model)
@@ -168,7 +166,7 @@ func writeInterfaceMethods(model Model) {
 			writeLine(model.f, "return %s.%s", model.receiverName, field.lowerName)
 
 		} else {
-			writeLine(model.f, "return %s.data.%s", model.receiverName, field.lowerName)
+			writeLine(model.f, "return %s.data.%s", model.receiverName, field.upperName)
 
 		}
 		writeLine(model.f, "}\n")
@@ -224,8 +222,8 @@ func writeSetStubs(model Model) {
 	writeLine(model.f, "}")
 
 	writeLine(model.f, "// MustBuild calls Build() but panics if there is an error")
-	writeLine(model.f, "func (%s *%s) MustBuild() %s {", model.receiverName, model.externalStructName, model.interfaceName)
-	writeLine(model.f, "data, err := %s.Build()", model.receiverName)
+	writeLine(model.f, "func (builder *%s) MustBuild() %s {", model.externalStructName, model.interfaceName)
+	writeLine(model.f, "data, err := builder.Build()")
 	writeLine(model.f, "if err != nil {")
 	writeLine(model.f, "panic(fmt.Errorf(\"failed to build %s: %%v\", err))", model.internalStructName)
 	writeLine(model.f, "}")
@@ -234,37 +232,22 @@ func writeSetStubs(model Model) {
 }
 
 func writeMarshallingStubs(model Model) {
-	writeLine(model.f, "// MarshalBSON marshals the %s to BSON", model.externalStructName)
-	writeLine(model.f, "func (%s %s) MarshalBSON() ([]byte, error) {\nreturn bson.Marshal(%s)\n}", model.receiverName, model.gettersName, model.receiverName)
+	sonType := "BSON"
+	if model.fType == fJSON {
+		sonType = "JSON"
+	}
+	writeLine(model.f, "// %s marshals the %s to %s", sonType, model.externalStructName, sonType)
+	writeLine(model.f, "func (%s %s) Marshal%s() ([]byte, error) {\nreturn %s.Marshal(%s)\n}", model.receiverName, model.gettersName, sonType, strings.ToLower(sonType), model.receiverName)
 
-	writeLine(model.f, "// UnmarshalBSON unmarshals the %s from BSON", model.externalStructName)
-	writeLine(model.f, "func (%s *%s) UnmarshalBSON(data []byte) error {\n return bson.Unmarshal(data, %s)\n}", model.receiverName, model.gettersName, model.receiverName)
+	writeLine(model.f, "// Unmarshal%s unmarshals the %s from %s", sonType, model.externalStructName, sonType)
+	writeLine(model.f, "func (%s *%s) Unmarshal%s(data []byte) error {\n return %s.Unmarshal(data, %s)\n}", model.receiverName, model.gettersName, sonType, strings.ToLower(sonType), model.receiverName)
 
-	writeLine(model.f, "// GetBSON returns the inner data for BSON marshaling")
-	writeLine(model.f, "func (%s %s) GetBSON() (interface{}, error) {\nreturn %s.data, nil\n}", model.receiverName, model.gettersName, model.receiverName)
+	writeLine(model.f, "// Get%s returns the inner data for %s marshaling", sonType, sonType)
+	writeLine(model.f, "func (%s %s) Get%s() (interface{}, error) {\nreturn %s.data, nil\n}", model.receiverName, model.gettersName, sonType, model.receiverName)
 
-	writeLine(model.f, "// SetBSON unmarshals BSON onto the %s", model.externalStructName)
-	writeLine(model.f, "func (%s *%s) SetBSON(raw bson.Raw) error {\n return raw.Unmarshal(&%s.data) \n}", model.receiverName, model.gettersName, model.receiverName)
+	writeLine(model.f, "// Set%s unmarshals %s onto the %s", sonType, sonType, model.externalStructName)
+	writeLine(model.f, "func (%s *%s) Set%s(raw %s.Raw) error {\n return raw.Unmarshal(&%s.data) \n}", model.receiverName, model.gettersName, sonType, strings.ToLower(sonType), model.receiverName)
 }
-
-// ToFunction converts a funcmodels.Function to a store Function
-// func ToFunction(function funcmodels.Function) *Function {
-// 	data := functionData{
-// 		ID:               function.ID(),
-// 		Name:             function.Name(),
-// 		Source:           function.Source(),
-// 		TranspiledSource: function.TranspiledSource(),
-// 		SourceMap:        function.SourceMap(),
-// 		Private:          function.Private(),
-// 	}
-// 	if canEvaluate := function.CanEvaluate(); canEvaluate != nil {
-// 		rule := xjson.MarshalD(*canEvaluate)
-// 		data.CanEvaluate = &rule
-// 	}
-// 	return &Function{
-// 		data: data,
-// 	}
-// }
 
 func writeToStructStub(model Model) {
 	writeLine(model.f, "// To%s converts a %s to a %s", model.externalStructName, model.interfaceName, model.externalStructName)

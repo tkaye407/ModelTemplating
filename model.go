@@ -1,79 +1,63 @@
-package funcmodels
+package valmodels
 
 import (
 	"errors"
 	"fmt"
 )
 
-// Function represents ... TODO
-type Function interface {
+// Value represents ... TODO
+type Value interface {
 	ID() bson.ObjectId
 	Name() string
-	TranspiledSource() string
-	SourceMap() json.RawMessage
+	Value() xjson.Value
 	Private() bool
-	CanEvaluate() *bson.D
-	Builder() *FunctionBuilder
+	Builder() *ValueBuilder
 }
 
-// FunctionBuilder builds and validates functions
-type FunctionBuilder struct {
-	data function
+// ValueBuilder builds and validates values
+type ValueBuilder struct {
+	data value
 }
 
-type function struct {
-	id               bson.ObjectId
-	name             string
-	transpiledSource string
-	sourceMap        json.RawMessage
-	private          bool
-	canEvaluate      *bson.D
+type value struct {
+	id      bson.ObjectId
+	name    string
+	value   xjson.Value
+	private bool
 }
 
-// NewFunction returns a new FunctionBuilder
-func NewFunctionBuilder() *FunctionBuilder {
-	return &FunctionBuilder{}
+// NewValue returns a new ValueBuilder
+func NewValueBuilder() *ValueBuilder {
+	return &ValueBuilder{}
 }
 
-// ID returns the id of this function
-func (fn *function) ID() bson.ObjectId {
-	return fn.id
+// ID returns the id of this value
+func (val *value) ID() bson.ObjectId {
+	return val.id
 }
 
-// Name returns the name of this function
-func (fn *function) Name() string {
-	return fn.name
+// Name returns the name of this value
+func (val *value) Name() string {
+	return val.name
 }
 
-// TranspiledSource returns the transpiledSource of this function
-func (fn *function) TranspiledSource() string {
-	return fn.transpiledSource
+// Value returns the value of this value
+func (val *value) Value() xjson.Value {
+	return val.value
 }
 
-// SourceMap returns the sourceMap of this function
-func (fn *function) SourceMap() json.RawMessage {
-	return fn.sourceMap
+// Private returns the private of this value
+func (val *value) Private() bool {
+	return val.private
 }
 
-// Private returns the private of this function
-func (fn *function) Private() bool {
-	return fn.private
-}
-
-// CanEvaluate returns the canEvaluate of this function
-func (fn *function) CanEvaluate() *bson.D {
-	return fn.canEvaluate
-}
-
-// Builder creates a shallow copy of the function and returns it as a FunctionBuilder
-func (fn *function) Builder() *FunctionBuilder {
-	builder := NewFunctionBuilder().
-		WithID(fn.ID()).
-		WithName(fn.Name()).
-		WithTranspiledSource(fn.TranspiledSource()).
-		WithSourceMap(fn.SourceMap()).
-		WithPrivate(fn.Private()).
-		WithCanEvaluate(fn.CanEvaluate())
+// Builder creates a shallow copy of the value and returns it as a ValueBuilder
+func (val *value) Builder() *ValueBuilder {
+	builder := NewValueBuilder().
+		WithID(val.ID()).
+		WithName(val.Name()).
+		WithValue(val.Value()).
+		WithPrivate(val.Private())
 
 	// perform any necessary checks
 	// if ....
@@ -81,55 +65,41 @@ func (fn *function) Builder() *FunctionBuilder {
 	return builder
 }
 
-// WithID sets the ID for the FunctionBuilder
-func (builder *FunctionBuilder) WithID(id bson.ObjectId) *FunctionBuilder {
+// WithID sets the ID for the ValueBuilder
+func (builder *ValueBuilder) WithID(id bson.ObjectId) *ValueBuilder {
 	builder.data.id = id
 	return builder
 }
 
-// WithName sets the Name for the FunctionBuilder
-func (builder *FunctionBuilder) WithName(name string) *FunctionBuilder {
+// WithName sets the Name for the ValueBuilder
+func (builder *ValueBuilder) WithName(name string) *ValueBuilder {
 	builder.data.name = name
 	return builder
 }
 
-// WithTranspiledSource sets the TranspiledSource for the FunctionBuilder
-func (builder *FunctionBuilder) WithTranspiledSource(transpiledSource string) *FunctionBuilder {
-	builder.data.transpiledSource = transpiledSource
+// WithValue sets the Value for the ValueBuilder
+func (builder *ValueBuilder) WithValue(value xjson.Value) *ValueBuilder {
+	builder.data.value = value
 	return builder
 }
 
-// WithSourceMap sets the SourceMap for the FunctionBuilder
-func (builder *FunctionBuilder) WithSourceMap(sourceMap json.RawMessage) *FunctionBuilder {
-	builder.data.sourceMap = sourceMap
-	return builder
-}
-
-// WithPrivate sets the Private for the FunctionBuilder
-func (builder *FunctionBuilder) WithPrivate(private bool) *FunctionBuilder {
+// WithPrivate sets the Private for the ValueBuilder
+func (builder *ValueBuilder) WithPrivate(private bool) *ValueBuilder {
 	builder.data.private = private
 	return builder
 }
 
-// WithCanEvaluate sets the CanEvaluate for the FunctionBuilder
-func (builder *FunctionBuilder) WithCanEvaluate(canEvaluate *bson.D) *FunctionBuilder {
-	builder.data.canEvaluate = canEvaluate
-	return builder
-}
-
-// Build builds a new Function if it is validated
-func (builder *FunctionBuilder) Build() (Function, error) {
-	built := &function{
-		id:               builder.data.id,
-		name:             builder.data.name,
-		transpiledSource: builder.data.transpiledSource,
-		sourceMap:        builder.data.sourceMap,
-		private:          builder.data.private,
-		canEvaluate:      builder.data.canEvaluate,
+// Build builds a new Value if it is validated
+func (builder *ValueBuilder) Build() (Value, error) {
+	built := &value{
+		id:      builder.data.id,
+		name:    builder.data.name,
+		value:   builder.data.value,
+		private: builder.data.private,
 	}
 
 	// Do relevant checks here
-	// if fn.data.id == "" {
+	// if val.data.id == "" {
 	// 		return nil, errors.New("ERROR MESSAGE")
 	// }
 
@@ -137,10 +107,10 @@ func (builder *FunctionBuilder) Build() (Function, error) {
 }
 
 // MustBuild calls Build() but panics if there is an error
-func (fn *FunctionBuilder) MustBuild() Function {
-	data, err := fn.Build()
+func (builder *ValueBuilder) MustBuild() Value {
+	data, err := builder.Build()
 	if err != nil {
-		panic(fmt.Errorf("failed to build function: %v", err))
+		panic(fmt.Errorf("failed to build value: %v", err))
 	}
 	return data
 }

@@ -9,64 +9,50 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// Function is the representation of a funcmodels.Function interface
-type Function struct {
-	data function
+// Value is the representation of a valmodels.Value interface
+type Value struct {
+	data value
 }
 
-type function struct {
-	ID               bson.ObjectId   `json:"_id"`
-	Name             string          `json:"name"`
-	TranspiledSource string          `json:"transpiledSource"`
-	SourceMap        json.RawMessage `json:"sourceMap"`
-	Private          bool            `json:"private"`
-	CanEvaluate      *bson.D         `json:"canEvaluate"`
+type value struct {
+	ID      bson.ObjectId `json:"_id"`
+	Name    string        `json:"name"`
+	Value   xjson.Value   `json:"value"`
+	Private bool          `json:"private"`
 }
 
-// Newfuncmodels.Function returns a new Function
-func NewFunction() *Function {
-	return &Function{}
+// Newvalmodels.Value returns a new Value
+func NewValue() *Value {
+	return &Value{}
 }
 
-// ID returns the id of this Function
-func (fn *Function) ID() bson.ObjectId {
-	return fn.data.id
+// ID returns the id of this Value
+func (val *Value) ID() bson.ObjectId {
+	return val.data.ID
 }
 
-// Name returns the name of this Function
-func (fn *Function) Name() string {
-	return fn.data.name
+// Name returns the name of this Value
+func (val *Value) Name() string {
+	return val.data.Name
 }
 
-// TranspiledSource returns the transpiledSource of this Function
-func (fn *Function) TranspiledSource() string {
-	return fn.data.transpiledSource
+// Value returns the value of this Value
+func (val *Value) Value() xjson.Value {
+	return val.data.Value
 }
 
-// SourceMap returns the sourceMap of this Function
-func (fn *Function) SourceMap() json.RawMessage {
-	return fn.data.sourceMap
+// Private returns the private of this Value
+func (val *Value) Private() bool {
+	return val.data.Private
 }
 
-// Private returns the private of this Function
-func (fn *Function) Private() bool {
-	return fn.data.private
-}
-
-// CanEvaluate returns the canEvaluate of this Function
-func (fn *Function) CanEvaluate() *bson.D {
-	return fn.data.canEvaluate
-}
-
-// Builder creates a shallow copy of the Function and returns it as a funcmodels.FunctionBuilder
-func (fn *Function) Builder() *funcmodels.FunctionBuilder {
-	builder := funcmodels.NewFunctionBuilder().
-		WithID(fn.ID()).
-		WithName(fn.Name()).
-		WithTranspiledSource(fn.TranspiledSource()).
-		WithSourceMap(fn.SourceMap()).
-		WithPrivate(fn.Private()).
-		WithCanEvaluate(fn.CanEvaluate())
+// Builder creates a shallow copy of the Value and returns it as a valmodels.ValueBuilder
+func (val *Value) Builder() *valmodels.ValueBuilder {
+	builder := valmodels.NewValueBuilder().
+		WithID(val.ID()).
+		WithName(val.Name()).
+		WithValue(val.Value()).
+		WithPrivate(val.Private())
 
 	// perform any necessary checks
 	// if ....
@@ -74,41 +60,39 @@ func (fn *Function) Builder() *funcmodels.FunctionBuilder {
 	return builder
 }
 
-// MarshalBSON marshals the Function to BSON
-func (fn Function) MarshalBSON() ([]byte, error) {
-	return bson.Marshal(fn)
+// JSON marshals the Value to JSON
+func (val Value) MarshalJSON() ([]byte, error) {
+	return json.Marshal(val)
 }
 
-// UnmarshalBSON unmarshals the Function from BSON
-func (fn *Function) UnmarshalBSON(data []byte) error {
-	return bson.Unmarshal(data, fn)
+// UnmarshalJSON unmarshals the Value from JSON
+func (val *Value) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, val)
 }
 
-// GetBSON returns the inner data for BSON marshaling
-func (fn Function) GetBSON() (interface{}, error) {
-	return fn.data, nil
+// GetJSON returns the inner data for JSON marshaling
+func (val Value) GetJSON() (interface{}, error) {
+	return val.data, nil
 }
 
-// SetBSON unmarshals BSON onto the Function
-func (fn *Function) SetBSON(raw bson.Raw) error {
-	return raw.Unmarshal(&fn.data)
+// SetJSON unmarshals JSON onto the Value
+func (val *Value) SetJSON(raw json.Raw) error {
+	return raw.Unmarshal(&val.data)
 }
 
-// ToFunction converts a funcmodels.Function to a Function
-func ToFunction(fn funcmodels.Function) *Function {
-	data := function{
-		ID:               fn.ID(),
-		Name:             fn.Name(),
-		TranspiledSource: fn.TranspiledSource(),
-		SourceMap:        fn.SourceMap(),
-		Private:          fn.Private(),
-		CanEvaluate:      fn.CanEvaluate(),
+// ToValue converts a valmodels.Value to a Value
+func ToValue(val valmodels.Value) *Value {
+	data := value{
+		ID:      val.ID(),
+		Name:    val.Name(),
+		Value:   val.Value(),
+		Private: val.Private(),
 	}
 
 	// Perform some checks
 	// if data.... ==
 
-	return &Function{
+	return &Value{
 		data: data,
 	}
 }
