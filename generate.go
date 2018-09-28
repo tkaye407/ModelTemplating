@@ -9,6 +9,9 @@ import (
 
 func main() {
 	// Declare the fields
+	structName := "value"
+	receiverName := "val"
+	modelPackage := "valmodels"
 	fields := []Field{
 		NewField("ID", "bson.ObjectId"),
 		NewField("Name", "string"),
@@ -16,11 +19,8 @@ func main() {
 		NewField("Private", "bool"),
 	}
 
-	// Create the model
-	model := NewModel("value", "val", "valmodels", fModel, fields)
-
 	// output the write
-	writeFiles(model)
+	writeFiles(NewModel(structName, receiverName, modelPackage, fModel, fields))
 }
 
 func writeFiles(model Model) {
