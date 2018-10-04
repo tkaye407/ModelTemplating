@@ -1,66 +1,99 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
 	"fmt"
-	"os"
+	"go/format"
+	"io/ioutil"
 	"strings"
+
+	"github.com/manifoldco/promptui"
 )
 
 func main() {
-	// Declare the fields
-	structName := "value"
-	receiverName := "val"
-	modelPackage := "valmodels"
-	fields := []Field{
-		NewField("ID", "bson.ObjectId"),
-		NewField("Name", "string"),
-		NewField("Value", "xjson.Value"),
-		NewField("Private", "bool"),
-	}
+	useCLI := true
 
-	// output the write
-	writeFiles(NewModel(structName, receiverName, modelPackage, fModel, fields))
+	if useCLI {
+		generateWithCLI()
+	} else {
+		structName := "value"
+		receiverName := "val"
+		modelPackage := "valmodels"
+		fields := []Field{
+			NewField("ID", "bson.ObjectId"),
+			NewField("Name", "string"),
+			NewField("Value", "xjson.Value"),
+			NewField("Private", "bool"),
+		}
+
+		// output the write
+		writeFiles(NewModel(structName, receiverName, modelPackage, "model.go", fModel, fields))
+	}
+}
+
+func generateWithCLI() {
+	prompt := promptui.Prompt{Label: "Enter Model/Struct Name "}
+	structName, err := prompt.Run()
+	check(err)
+
+	prompt = promptui.Prompt{Label: "Enter Model Package Name "}
+	modelPackage, err := prompt.Run()
+	check(err)
+
+	prompt = promptui.Prompt{Label: "Enter Model Receiver Name "}
+	receiverName, err := prompt.Run()
+	check(err)
+
+	var fields []Field
+	for {
+		prompt = promptui.Prompt{Label: "Enter Field Name or 'done' to finish "}
+		fieldName, err := prompt.Run()
+		check(err)
+
+		if fieldName == "done" {
+			break
+		}
+
+		prompt = promptui.Prompt{Label: "Enter Field Type "}
+		fieldType, err := prompt.Run()
+		check(err)
+
+		fields = append(fields, NewField(fieldName, fieldType))
+	}
+	writeFiles(NewModel(structName, receiverName, modelPackage, "model.go", fModel, fields))
 }
 
 func writeFiles(model Model) {
 	// Open three files
-	f_model, err := os.Create("model.go")
-	check(err)
-	defer f_model.Close()
-	w_model := bufio.NewWriter(f_model)
-
-	f_json, err := os.Create("model_json.go")
-	check(err)
-	defer f_json.Close()
-	w_json := bufio.NewWriter(f_json)
-
-	f_bson, err := os.Create("model_bson.go")
-	check(err)
-	defer f_bson.Close()
-	w_bson := bufio.NewWriter(f_bson)
+	modelBytes := bytes.NewBuffer([]byte{})
+	bsonBytes := bytes.NewBuffer([]byte{})
+	jsonBytes := bytes.NewBuffer([]byte{})
 
 	// write the model
-	model.f = w_model
+	model.f = modelBytes
 	writeModel(model)
 
 	// write the bson model
 	model.externalStructName = model.interfaceName
 	model.gettersName = model.interfaceName
 	model.interfaceName = model.packageName + "." + model.interfaceName
-	model.f = w_bson
+	model.f = bsonBytes
+	model.fileName = "model_bson.go"
 	model.fType = fBSON
 	writeModel(model)
 
-	model.f = w_json
+	model.f = jsonBytes
+	model.fileName = "model_json.go"
 	model.fType = fJSON
 	writeModel(model)
 
 }
 
-func writeLine(w *bufio.Writer, str string, a ...interface{}) {
-	_, err := w.WriteString(fmt.Sprintf(str+"\n", a...))
-	check(err)
+func writeLine(file *bytes.Buffer, str string, a ...interface{}) {
+	// fmt.Println("*")
+	file.WriteString(fmt.Sprintf(str+"\n", a...))
+	// fmt.Println(string(file.Bytes()))
+	// fmt.Println("*")
 }
 
 func writeModel(model Model) {
@@ -93,7 +126,10 @@ func writeModel(model Model) {
 		writeToStructStub(model)
 	}
 
-	model.f.Flush()
+	fileBytes, err := format.Source(model.f.Bytes())
+	check(err)
+	err = ioutil.WriteFile(model.fileName, fileBytes, 0644)
+	check(err)
 }
 
 func writeInterfaceStub(model Model) {
@@ -145,7 +181,7 @@ func writeStructStub(model Model) {
 }
 
 func writeNewFunc(model Model) {
-	writeLine(model.f, "// New%s returns a new %s", model.interfaceName, model.externalStructName)
+	writeLine(model.f, "// New%s returns a new %s", model.externalStructName, model.externalStructName)
 	writeLine(model.f, "func New%s() *%s {", model.externalStructName, model.externalStructName)
 	writeLine(model.f, "return &%s{}", model.externalStructName)
 	// str := "func New" + model.interfaceName + "("
@@ -302,12 +338,13 @@ type Model struct {
 	gettersName        string
 	receiverName       string
 	packageName        string
+	fileName           string
 	fType              FileType
 	fields             []Field
-	f                  *bufio.Writer
+	f                  *bytes.Buffer
 }
 
-func NewModel(name, receiverName, packageName string, fileType FileType, fields []Field) Model {
+func NewModel(name, receiverName, packageName, fileName string, fileType FileType, fields []Field) Model {
 	return Model{
 		interfaceName:      strings.Title(name),
 		internalStructName: strings.ToLower(string(name[0])) + name[1:],
@@ -316,6 +353,7 @@ func NewModel(name, receiverName, packageName string, fileType FileType, fields 
 		receiverName:       receiverName,
 		packageName:        packageName,
 		fType:              fileType,
+		fileName:           fileName,
 		fields:             fields,
 	}
 }
